@@ -1,0 +1,21 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.Renviron
+
+# build artefacts
+# NB: man/ is deliberately NOT ignored. Commit the roxygen-generated .Rd files
+# so that remotes::install_github() installs with working help pages.
+*.tar.gz
+*.Rcheck/
+
+# example output
+independence_output/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
