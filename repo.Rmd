@@ -1,0 +1,15 @@
+---
+title: "camtrapEvents"
+author: "Samuel Awini"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+
+cd "C:\Users\winsa\OneDrive\03_Manuscripts\Mole_NP_Mammals\Analysis\camtrapEvents"
+git init && git add . && git commit -m "camtrapEvents 0.1.0"
+gh repo create awsamu/camtrapEvents --public --source=. --push
+
+```
+
