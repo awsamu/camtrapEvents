@@ -194,6 +194,87 @@ test_that("independence_sensitivity returns a coherent grid", {
   expect_true(!is.null(s$inflation))
 })
 
+test_that("min_increase raises the evidence bar for a new event", {
+  ## a rise of 1 looks like a miscount; a rise of 4 does not
+  d <- mk(c(0, 5), adults = c(3, 4))
+  expect_equal(flag(d, threshold = 30, rule = "running_max",
+                    metadata = "adults", min_increase = 1), c(TRUE, TRUE))
+  expect_equal(flag(d, threshold = 30, rule = "running_max",
+                    metadata = "adults", min_increase = 2), c(TRUE, FALSE))
+
+  d2 <- mk(c(0, 5), adults = c(3, 7))
+  expect_equal(flag(d2, threshold = 30, rule = "running_max",
+                    metadata = "adults", min_increase = 2), c(TRUE, TRUE))
+
+  expect_error(flag(d, threshold = 30, rule = "running_max",
+                    metadata = "adults", min_increase = 0), "min_increase")
+})
+
+test_that("n_new counts each individual exactly once when a burst is split", {
+  ## 3 -> 5 -> 5 is five animals, not eight
+  d <- mk(c(0, 5, 10), adults = c(3, 5, 5))
+  out <- independent_events(d, "datetime", "station", "species",
+                            threshold = 30, rule = "running_max",
+                            metadata = "adults")
+  expect_equal(out$independent, c(TRUE, TRUE, FALSE))
+  expect_equal(sum(out$n_new[out$independent]), 5)
+  expect_equal(out$n_new[out$independent], c(3, 2))
+})
+
+test_that("n_new equals the burst maximum when nothing is split", {
+  ## a group of 3 seen repeatedly is one encounter of three animals
+  d <- mk(c(0, 5, 10), adults = c(3, 2, 3))
+  out <- independent_events(d, "datetime", "station", "species",
+                            threshold = 30, rule = "time_only", count = "adults")
+  expect_equal(sum(out$independent), 1L)
+  expect_equal(sum(out$n_new[out$independent]), 3)
+})
+
+test_that("n_new is NA under time_only unless a group size is supplied", {
+  d <- mk(c(0, 5), adults = c(3, 3))
+  bare <- independent_events(d, "datetime", "station", "species",
+                             threshold = 30, rule = "time_only")
+  expect_true(all(is.na(bare$n_new)))
+})
+
+test_that("an event opened by a decrease contributes no new individuals", {
+  ## any_change splits on 5 -> 3, but no animal arrived
+  d <- mk(c(0, 5), adults = c(5, 3))
+  out <- independent_events(d, "datetime", "station", "species",
+                            threshold = 30, rule = "any_change",
+                            metadata = "adults")
+  expect_equal(out$independent, c(TRUE, TRUE))
+  expect_equal(out$n_new[out$independent], c(5, 0))
+  expect_equal(sum(out$n_new[out$independent]), 5)
+})
+
+test_that("n_new resets across bursts", {
+  d <- mk(c(0, 200), adults = c(3, 4))
+  out <- independent_events(d, "datetime", "station", "species",
+                            threshold = 30, rule = "running_max",
+                            metadata = "adults")
+  expect_equal(out$n_new[out$independent], c(3, 4))
+})
+
+test_that("n_new uses count when supplied and metadata sum otherwise", {
+  d <- mk(c(0, 5), males = c(1, 2), females = c(2, 2), n_animals = c(3, 4))
+  a <- independent_events(d, "datetime", "station", "species", threshold = 30,
+                          rule = "running_max", metadata = c("males", "females"),
+                          count = "n_animals")
+  expect_equal(sum(a$n_new[a$independent]), 4)
+
+  b <- independent_events(d, "datetime", "station", "species", threshold = 30,
+                          rule = "running_max", metadata = c("males", "females"))
+  expect_equal(sum(b$n_new[b$independent]), 4)
+})
+
+test_that("n_new is NA when no group size can be determined", {
+  d <- mk(c(0, 5), behaviour = c("passing", "drinking"))
+  out <- independent_events(d, "datetime", "station", "species", threshold = 30,
+                            rule = "any_change", metadata = "behaviour")
+  expect_true(all(is.na(out$n_new)))
+})
+
 test_that("event totals decrease monotonically as the threshold increases", {
   set.seed(42)
   n <- 300

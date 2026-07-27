@@ -42,7 +42,14 @@
 #' @param metadata Character vector of column names carrying the metadata used
 #'   by \code{rule}. Ignored when \code{rule = "time_only"}.
 #' @param count Optional name of a total group-size column, used by
-#'   \code{"running_max"} in addition to \code{metadata}.
+#'   \code{"running_max"} in addition to \code{metadata}, and used to compute
+#'   \code{n_new}. If absent, group size falls back to the sum of numeric
+#'   \code{metadata}.
+#' @param min_increase How far a count must exceed the running maximum before it
+#'   counts as evidence of a new individual, under \code{"running_max"}. The
+#'   default of 1 accepts any increase. Raise it where tagging is noisy: a rise
+#'   from 3 to 4 animals is exactly what a miscount looks like, whereas a rise
+#'   from 3 to 7 is not. Ignored by the other rules.
 #' @param compare_to Reference point for the time gap:
 #'   \describe{
 #'     \item{\code{"last_record"}}{Gap measured from the previous record, retained
@@ -57,13 +64,39 @@
 #' @param filter If \code{TRUE}, return only independent records. If \code{FALSE}
 #'   (default), return all records with the flag columns added.
 #'
-#' @return \code{data} with three columns added:
+#' @return \code{data} with four columns added:
 #'   \describe{
 #'     \item{\code{independent}}{logical, \code{TRUE} for an independent event}
 #'     \item{\code{event_id}}{integer, consecutive event number within station and species}
 #'     \item{\code{burst_id}}{integer, the time-defined burst the record belongs to}
+#'     \item{\code{n_new}}{numeric, individuals seen at this event that were not
+#'       already counted earlier in the same burst; \code{NA} when no group size
+#'       is available}
 #'   }
 #'   Row order is preserved.
+#'
+#' @section Events versus individuals:
+#' These are different units and the package reports both. A group of three
+#' animals passing together is one encounter containing three individuals, not
+#' three encounters; treating it as three is the pseudo-replication that
+#' independence filtering exists to prevent. But three animals arriving
+#' separately within the window are three encounters, and a time-only rule
+#' wrongly merges them.
+#'
+#' Use \code{event_id} for anything that counts encounters, such as diel activity
+#' patterns or occupancy. Use \code{n_new} for anything that counts animals, such
+#' as an individual-based relative abundance index. Summing \code{n_new} over
+#' independent records gives the number of distinct individuals, counting each
+#' animal exactly once even where a rule has split a burst:
+#'
+#' \preformatted{
+#' ev <- independent_events(recs, ..., filter = TRUE)
+#' sum(ev$n_new)            # distinct individuals
+#' nrow(ev)                 # encounters
+#' }
+#'
+#' Taking the group size of each split event instead would double-count the
+#' animals that were already present.
 #'
 #' @section Choosing a rule:
 #' \code{"time_only"} is the safe default when metadata is unreliable or absent.
@@ -106,15 +139,16 @@
 independent_events <- function(data,
                                datetime,
                                station,
-                               species    = NULL,
-                               threshold  = 30,
-                               rule       = c("running_max", "any_change", "time_only"),
-                               metadata   = NULL,
-                               count      = NULL,
-                               compare_to = c("last_record", "last_independent"),
-                               format     = "%Y-%m-%d %H:%M:%S",
-                               tz         = "UTC",
-                               filter     = FALSE) {
+                               species      = NULL,
+                               threshold    = 30,
+                               rule         = c("running_max", "any_change", "time_only"),
+                               metadata     = NULL,
+                               count        = NULL,
+                               min_increase = 1,
+                               compare_to   = c("last_record", "last_independent"),
+                               format       = "%Y-%m-%d %H:%M:%S",
+                               tz           = "UTC",
+                               filter       = FALSE) {
 
   rule       <- match.arg(rule)
   compare_to <- match.arg(compare_to)
@@ -124,6 +158,10 @@ independent_events <- function(data,
   if (!is.numeric(threshold) || length(threshold) != 1L || is.na(threshold) ||
       threshold < 0) {
     stop("`threshold` must be a single non-negative number of minutes.", call. = FALSE)
+  }
+  if (!is.numeric(min_increase) || length(min_increase) != 1L ||
+      is.na(min_increase) || min_increase < 1) {
+    stop("`min_increase` must be a single number >= 1.", call. = FALSE)
   }
 
   need <- c(datetime, station, species, count,
@@ -181,6 +219,14 @@ independent_events <- function(data,
 
   tot <- if (!is.null(count)) as.numeric(data[[count]]) else NULL
 
+  ## Group size used to infer how many individuals were newly seen. Prefer an
+  ## explicit count column; otherwise fall back to the sum of numeric metadata.
+  size <- tot
+  if (is.null(size) && length(metadata) &&
+      all(vapply(data[, metadata, drop = FALSE], is.numeric, logical(1)))) {
+    size <- rowSums(data[, metadata, drop = FALSE])
+  }
+
   ## --- grouping -------------------------------------------------------------
   keys <- list(as.character(data[[station]]))
   if (!is.null(species)) keys <- c(keys, list(as.character(data[[species]])))
@@ -189,24 +235,29 @@ independent_events <- function(data,
   independent <- logical(nrow(data))
   burst_id    <- integer(nrow(data))
   event_id    <- integer(nrow(data))
+  n_new       <- rep(NA_real_, nrow(data))
 
   for (rows in split(seq_len(nrow(data)), grp)) {
     res <- .flag_one_group(
-      times      = tt[rows],
-      meta       = if (is.null(meta)) NULL else meta[rows, , drop = FALSE],
-      total      = if (is.null(tot))  NULL else tot[rows],
-      threshold  = threshold,
-      rule       = rule,
-      compare_to = compare_to
+      times        = tt[rows],
+      meta         = if (is.null(meta)) NULL else meta[rows, , drop = FALSE],
+      total        = if (is.null(tot))  NULL else tot[rows],
+      size         = if (is.null(size)) NULL else size[rows],
+      threshold    = threshold,
+      rule         = rule,
+      compare_to   = compare_to,
+      min_increase = min_increase
     )
     independent[rows] <- res$independent
     burst_id[rows]    <- res$burst
     event_id[rows]    <- res$event
+    n_new[rows]       <- res$n_new
   }
 
   data$independent <- independent
   data$event_id    <- event_id
   data$burst_id    <- burst_id
+  data$n_new       <- n_new
 
   if (filter) data[data$independent, , drop = FALSE] else data
 }
@@ -219,24 +270,31 @@ independent_events <- function(data,
 #' explicit loop so the rule is auditable line by line.
 #'
 #' @noRd
-.flag_one_group <- function(times, meta, total, threshold, rule, compare_to) {
+.flag_one_group <- function(times, meta, total, size, threshold, rule,
+                            compare_to, min_increase = 1) {
 
   n <- length(times)
   ord <- order(times, method = "radix")   # ties keep input order
   t_s <- times[ord]
   m_s <- if (is.null(meta))  NULL else meta[ord, , drop = FALSE]
   c_s <- if (is.null(total)) NULL else total[ord]
+  s_s <- if (is.null(size))  NULL else size[ord]
 
   indep <- logical(n)
   burst <- integer(n)
+  ## running maximum group size within the current burst, recorded after each
+  ## record; used below to infer how many individuals were newly seen
+  bmax  <- rep(NA_real_, n)
   indep[1] <- TRUE
   burst[1] <- 1L
+  if (!is.null(s_s)) bmax[1] <- s_s[1]
 
   if (n > 1L) {
     max_meta  <- if (rule == "running_max") m_s[1, ] else NULL
     max_total <- if (rule == "running_max" && !is.null(c_s)) c_s[1] else NULL
     last_indep_time <- t_s[1]
     b <- 1L
+    run_size <- if (is.null(s_s)) NA_real_ else s_s[1]
 
     for (i in 2:n) {
 
@@ -252,6 +310,8 @@ independent_events <- function(data,
           max_meta  <- m_s[i, ]
           if (!is.null(c_s)) max_total <- c_s[i]
         }
+        ## new burst: the running group-size maximum restarts
+        if (!is.null(s_s)) run_size <- s_s[i]
       } else {
         ## isTRUE() so that NA metadata is treated as "no evidence of a new
         ## individual" rather than propagating NA into the flag.
@@ -259,9 +319,10 @@ independent_events <- function(data,
           rule,
           time_only   = FALSE,
           any_change  = isTRUE(any(m_s[i, ] != m_s[i - 1, ])),
-          running_max = isTRUE(any(m_s[i, ] > max_meta)) ||
-                        isTRUE(!is.null(c_s) && c_s[i] > max_total)
+          running_max = isTRUE(any(m_s[i, ] >= max_meta + min_increase)) ||
+                        isTRUE(!is.null(c_s) && c_s[i] >= max_total + min_increase)
         )
+        if (!is.null(s_s)) run_size <- max(run_size, s_s[i], na.rm = TRUE)
         if (rule == "running_max") {
           ## The running maximum absorbs every record in the burst, retained or
           ## not. This is what stops a value already seen from re-triggering.
@@ -271,6 +332,7 @@ independent_events <- function(data,
       }
 
       burst[i] <- b
+      bmax[i]  <- run_size
       if (indep[i]) last_indep_time <- t_s[i]
     }
   }
@@ -279,10 +341,36 @@ independent_events <- function(data,
   ## records can be aggregated back onto their event.
   event <- cumsum(indep)
 
+  ## ------------------------------------------------------------------------
+  ## Individuals newly seen at each event.
+  ##
+  ## A group of three animals passing together is ONE encounter containing
+  ## three individuals, not three encounters. But if a rule splits a burst,
+  ## naively taking the group size of each resulting event double-counts the
+  ## animals that were already there. The defensible quantity is the increment:
+  ## how far the running maximum group size rose during this event relative to
+  ## where it stood when the event opened. Summing this over events recovers the
+  ## number of distinct individuals, counting each animal exactly once.
+  ## ------------------------------------------------------------------------
+  n_new_s <- rep(NA_real_, n)
+  if (!is.null(s_s)) {
+    starts <- which(indep)                    # events are consecutive runs, so
+    ends   <- c(starts[-1L] - 1L, n)          # each run ends before the next
+    ev_max     <- bmax[ends]
+    ev_burst   <- burst[starts]
+    prev_max   <- c(0, ev_max[-length(ev_max)])
+    prev_burst <- c(NA_integer_, ev_burst[-length(ev_burst)])
+    ## only carry the previous maximum forward within the same burst
+    base    <- ifelse(!is.na(prev_burst) & ev_burst == prev_burst, prev_max, 0)
+    n_new_s <- rep(ev_max - base, times = ends - starts + 1L)
+  }
+
   ## back to caller's row order
-  out <- list(independent = logical(n), burst = integer(n), event = integer(n))
+  out <- list(independent = logical(n), burst = integer(n),
+              event = integer(n), n_new = numeric(n))
   out$independent[ord] <- indep
   out$burst[ord]       <- burst
   out$event[ord]       <- event
+  out$n_new[ord]       <- n_new_s
   out
 }

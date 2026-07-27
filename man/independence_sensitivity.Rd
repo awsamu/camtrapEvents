@@ -39,7 +39,9 @@ species. Pass \code{NULL} to pool all species.}
 by \code{rule}. Ignored when \code{rule = "time_only"}.}
 
 \item{count}{Optional name of a total group-size column, used by
-\code{"running_max"} in addition to \code{metadata}.}
+\code{"running_max"} in addition to \code{metadata}, and used to compute
+\code{n_new}. If absent, group size falls back to the sum of numeric
+\code{metadata}.}
 
 \item{compare_to}{Reference point for the time gap:
 \describe{

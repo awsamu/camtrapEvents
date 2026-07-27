@@ -1,3 +1,23 @@
+# camtrapEvents 0.2.0
+
+Adds the distinction between counting *encounters* and counting *individuals*.
+
+* `independent_events()` gains an `n_new` column: individuals seen at each event
+  that were not already counted earlier in the same burst. Summing `n_new` over
+  independent records counts each animal exactly once, which is the correct
+  numerator for an individual-based relative abundance index. Taking the group
+  size of each split event instead double-counts animals that were already
+  present.
+* `independent_events()` gains a `min_increase` argument controlling how far a
+  count must exceed the running maximum before it counts as evidence of a new
+  individual under `rule = "running_max"`. The default of 1 preserves previous
+  behaviour; raising it guards against miscounting by +/-1.
+* Documentation gains an "Events versus individuals" section explaining when to
+  use `event_id` and when to use `n_new`.
+
+Note for users of 0.1.0: event flagging is unchanged at `min_increase = 1`, so
+existing results are unaffected.
+
 # camtrapEvents 0.1.0
 
 First release.

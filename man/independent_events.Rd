@@ -13,6 +13,7 @@ independent_events(
   rule = c("running_max", "any_change", "time_only"),
   metadata = NULL,
   count = NULL,
+  min_increase = 1,
   compare_to = c("last_record", "last_independent"),
   format = "\%Y-\%m-\%d \%H:\%M:\%S",
   tz = "UTC",
@@ -56,7 +57,15 @@ species. Pass \code{NULL} to pool all species.}
 by \code{rule}. Ignored when \code{rule = "time_only"}.}
 
 \item{count}{Optional name of a total group-size column, used by
-\code{"running_max"} in addition to \code{metadata}.}
+\code{"running_max"} in addition to \code{metadata}, and used to compute
+\code{n_new}. If absent, group size falls back to the sum of numeric
+\code{metadata}.}
+
+\item{min_increase}{How far a count must exceed the running maximum before it
+counts as evidence of a new individual, under \code{"running_max"}. The
+default of 1 accepts any increase. Raise it where tagging is noisy: a rise
+from 3 to 4 animals is exactly what a miscount looks like, whereas a rise
+from 3 to 7 is not. Ignored by the other rules.}
 
 \item{compare_to}{Reference point for the time gap:
 \describe{
@@ -76,11 +85,14 @@ Equivalent to \pkg{camtrapR}'s \code{deltaTimeComparedTo}.}
 (default), return all records with the flag columns added.}
 }
 \value{
-\code{data} with three columns added:
+\code{data} with four columns added:
   \describe{
     \item{\code{independent}}{logical, \code{TRUE} for an independent event}
     \item{\code{event_id}}{integer, consecutive event number within station and species}
     \item{\code{burst_id}}{integer, the time-defined burst the record belongs to}
+    \item{\code{n_new}}{numeric, individuals seen at this event that were not
+      already counted earlier in the same burst; \code{NA} when no group size
+      is available}
   }
   Row order is preserved.
 }
@@ -99,6 +111,31 @@ applied to a transient species behaves quite differently. \code{independent_even
 therefore lets the independence decision use record-level metadata (group
 size, sex and age counts, behaviour, individual ID) in addition to time.
 }
+\section{Events versus individuals}{
+
+These are different units and the package reports both. A group of three
+animals passing together is one encounter containing three individuals, not
+three encounters; treating it as three is the pseudo-replication that
+independence filtering exists to prevent. But three animals arriving
+separately within the window are three encounters, and a time-only rule
+wrongly merges them.
+
+Use \code{event_id} for anything that counts encounters, such as diel activity
+patterns or occupancy. Use \code{n_new} for anything that counts animals, such
+as an individual-based relative abundance index. Summing \code{n_new} over
+independent records gives the number of distinct individuals, counting each
+animal exactly once even where a rule has split a burst:
+
+\preformatted{
+ev <- independent_events(recs, ..., filter = TRUE)
+sum(ev$n_new)            # distinct individuals
+nrow(ev)                 # encounters
+}
+
+Taking the group size of each split event instead would double-count the
+animals that were already present.
+}
+
 \section{Choosing a rule}{
 
 \code{"time_only"} is the safe default when metadata is unreliable or absent.
