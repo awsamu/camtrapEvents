@@ -1,13 +1,9 @@
 Package: camtrapEvents
 Title: Metadata-Aware Independence Filtering for Camera-Trap Data
 Version: 0.2.0
-Authors@R: c(
+Authors@R:
     person("Samuel", "Awini", email = "winsamuel@hotmail.com",
-           role = c("aut", "cre")),
-    person("Mar", "Cabeza", role = "aut"),
-    person("Sandra", "Goded", role = "aut"),
-    person("Ali", "Mahama", role = "aut"),
-    person("Nathaniel N. D.", "Annorbah", role = "aut"))
+           role = c("aut", "cre"))
 Description: Collapses repeated camera-trap records into independent detection
     events. Conventional filters use a fixed time threshold alone, which cannot
     distinguish an animal lingering in front of the camera from the arrival of

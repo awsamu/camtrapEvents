@@ -1,5 +1,8 @@
 # camtrapEvents
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21628401.svg)](https://doi.org/10.5281/zenodo.21628401)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Metadata-aware independence filtering for camera-trap data**
 
 Camera traps fire repeatedly on the same animal, so raw records are not

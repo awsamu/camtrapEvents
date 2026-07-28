@@ -1,0 +1,28 @@
+{
+  "title": "camtrapEvents: Metadata-Aware Independence Filtering for Camera-Trap Data",
+  "description": "<p>An R package that collapses repeated camera-trap records into independent detection events. Conventional filters use a fixed time threshold alone, which cannot distinguish an animal lingering in front of the camera from the arrival of new individuals. This package lets the independence decision also use record-level metadata such as group size, age and sex counts, behaviour or individual identity, and distinguishes counting encounters from counting individuals.</p>",
+  "creators": [
+    {
+      "name": "Awini, Samuel",
+      "affiliation": "University of Helsinki"
+    }
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "keywords": [
+    "camera trapping",
+    "independence filtering",
+    "detection events",
+    "relative abundance index",
+    "wildlife monitoring",
+    "R package"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1017/S0030605325102500",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    }
+  ]
+}

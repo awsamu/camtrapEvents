@@ -2,6 +2,8 @@
 ^\.Rproj\.user$
 ^\.github$
 ^\.gitignore$
+^\.gitattributes$
+^\.zenodo\.json$
 ^LICENSE\.md$
 ^independence_output$
 ^repo\.Rmd$
