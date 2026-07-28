@@ -166,7 +166,16 @@ them is a default. A methods section should read something like:
 
 ## Citation
 
-If you use `camtrapEvents`, please cite the software paper and the original
+Two DOIs, used for different purposes:
+
+- **Concept DOI** `10.5281/zenodo.21628401` always resolves to the latest
+  release. This is what the badge above points to, and what `citation()` returns.
+- **Version DOIs** pin a specific release. Cite these in a manuscript so readers
+  get the exact code you ran: v0.2.0 is
+  [`10.5281/zenodo.21639726`](https://doi.org/10.5281/zenodo.21639726),
+  v0.1.0 is `10.5281/zenodo.21628402`.
+
+If you use `camtrapEvents`, please cite the software and the original
 application:
 
 > Awini, S., Cabeza, M., Goded, S., Mahama, A. & Annorbah, N.N.D. (2026)
