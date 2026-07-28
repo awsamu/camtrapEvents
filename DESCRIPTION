@@ -3,7 +3,8 @@ Title: Metadata-Aware Independence Filtering for Camera-Trap Data
 Version: 0.2.0
 Authors@R:
     person("Samuel", "Awini", email = "winsamuel@hotmail.com",
-           role = c("aut", "cre"))
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-0270-0345"))
 Description: Collapses repeated camera-trap records into independent detection
     events. Conventional filters use a fixed time threshold alone, which cannot
     distinguish an animal lingering in front of the camera from the arrival of
@@ -14,6 +15,7 @@ Description: Collapses repeated camera-trap records into independent detection
     al. (2026) <doi:10.1017/S0030605325102500>.
 License: MIT + file LICENSE
 Encoding: UTF-8
+LazyData: true
 Depends: R (>= 3.5.0)
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown
 Config/testthat/edition: 3

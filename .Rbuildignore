@@ -4,6 +4,7 @@
 ^\.gitignore$
 ^\.gitattributes$
 ^\.zenodo\.json$
+^data-raw$
 ^LICENSE\.md$
 ^independence_output$
 ^repo\.Rmd$

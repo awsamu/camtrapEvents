@@ -109,10 +109,48 @@ SECR inputs. It addresses one step camtrapR treats as purely temporal.
 `camtrapR::recordTable(minDeltaTime = 0)`, a Camelot export, or a Camera Trap
 Data Package `observations` table.
 
-## Reproducing the published analysis
+## Example data with known ground truth
 
-`inst/examples/mole_worked_example.R` reproduces the filtering in Awini et al.
-(2026) and the full sensitivity analysis.
+Real camera-trap data can never tell you which rule is right. When forty
+photographs of kob arrive over twenty minutes, nobody knows whether that was one
+herd standing about or three herds passing through.
+
+The bundled `waterhole` dataset does know, because the groups were placed
+deliberately and `true_group` records which arrival each photograph belongs to:
+
+```r
+data(waterhole)
+truth <- length(unique(waterhole$true_group))   # 670 encounters
+
+#> time_only     584 events (bias -12.8%)   2046 individuals
+#> running_max   677 events (bias  +1.0%)   2046 individuals
+#> any_change    741 events (bias +10.6%)   2046 individuals
+```
+
+Two things to notice. `running_max` lands within 1% of the truth here, while a
+time-only rule misses 13% of encounters and `any_change` invents 11%. And the
+individual count is **identical under all three rules**: splitting a burst moves
+animals between events but cannot change how many distinct animals were inferred
+present.
+
+Per-species inflation over the time-only rule tracks group size exactly as the
+mechanism predicts:
+
+| Species | Mean group | `running_max` | `any_change` |
+|---|---|---|---|
+| *Panthera pardus* | 1 | +1.3% | +2.0% |
+| *Tragelaphus scriptus* | 2 | +9.3% | +14.6% |
+| *Kobus kob* | 6 | +19.1% | +42.6% |
+| *Papio anubis* | 8 | +36.0% | +51.8% |
+
+`inst/examples/worked_example.R` runs all of this end to end.
+
+The data are simulated. The survey that motivated this package, in Mole National
+Park, Ghana, cannot be released because it contains precise locations of
+threatened species, so `waterhole` was generated from parameters measured on it:
+a 2.83% frame-to-frame composition change rate, a 1,182-minute median gap between
+bursts, 6.63 records per burst, and a 14.1-minute mean burst duration. See
+`data-raw/make_waterhole.R`.
 
 ## Whatever you choose, state it
 
@@ -122,7 +160,7 @@ them is a default. A methods section should read something like:
 > Detections were considered independent if separated by more than 30 minutes
 > from the previous record of the same species at the same station, or if the
 > count of any age or sex class exceeded the maximum already observed within
-> that sequence (`camtrapEvents` v0.1.0, `rule = "running_max"`,
+> that sequence (`camtrapEvents` v0.2.0, `rule = "running_max"`,
 > `compare_to = "last_record"`). Event totals under alternative thresholds and
 > rules are given in Table S1.
 
